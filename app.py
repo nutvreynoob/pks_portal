@@ -1,76 +1,194 @@
+import os
 import random
-from flask import Flask, render_template, request
+from datetime import datetime
+import pytz
+from flask import Flask, render_template, redirect, url_for, request, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'pks_secret_key_12345'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pks_database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Blank runtime database - profiles ONLY exist when created via /register
-users_db = {}
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
-# Master list of pool classmates with pre-assigned rooms (1 to 10)
-global_classmates_pool = [
-    {"id": "11150", "name": "นายบ๊อบ ตัวตึงสายสตรีม", "room": 1, "status": "Afk กินขนม"},
-    {"id": "22210", "name": "นายกัปตัน สกิบิดี้", "room": 3, "status": "Mewing ในห้องน้ำ"},
-    {"id": "66666", "name": "เด็กหญิงพาวเวอร์พัฟเกิร์ล", "room": 5, "status": "กำลังแต่งเพลง"},
-    {"id": "77740", "name": "นายจอนนี่ กิจกรรมเด่น", "room": 7, "status": "โดดร่มใน Roblox"},
-    {"id": "99999", "name": "นายจอห์น วิค", "room": 7, "status": "ฟาร์มม้าอุมามุสุเมะ"},
-    {"id": "88812", "name": "นายมิววิ่ง แชมเปี้ยน", "room": 9, "status": "Online อยู่หน้าคอม"},
-]
+# --- OHIO CONFIGURATION ---
+OHIO_TEACHERS = ["Dr. Sigma", "Professor Skibidi", "Mr. Rizzler", "Lord Grimace", "Duke Dennis", "Giga Chad", "Kai Cenat's Uncle"]
+OHIO_SUBJECTS = ["Advanced Mewing", "Skibidi Toilet Defusal", "Quantum Rizzology", "Fanum Tax Accounting", "Griddy Mechanics", "Subway Surfers Focus"]
+
+# --- DATABASE MODELS ---
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    money = db.Column(db.Integer, default=1000)               
+    goodness_points = db.Column(db.Integer, default=100)       
+    room = db.Column(db.Integer, default=1)                   
+
+class SchoolState(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    current_teacher = db.Column(db.String(100))
+    current_subject = db.Column(db.String(100))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+def randomize_weekly_classes():
+    with app.app_context():
+        users = User.query.all()
+        for user in users:
+            user.room = random.randint(1, 12)
+        
+        state = SchoolState.query.first()
+        if not state:
+            state = SchoolState()
+            db.session.add(state)
+        
+        state.current_teacher = random.choice(OHIO_TEACHERS)
+        state.current_subject = random.choice(OHIO_SUBJECTS)
+        
+        db.session.commit()
+        print(f"[{datetime.now()}] Weekly Ohio Rotation Complete!")
+
+scheduler = BackgroundScheduler(timezone=pytz.timezone('Asia/Bangkok'))
+scheduler.add_job(func=randomize_weekly_classes, trigger="cron", day_of_week='mon', hour=0, minute=0)
+scheduler.start()
+
+# --- ROUTES ---
 
 @app.route('/')
-def home():
-    return render_template('index.html')
+def index():
+    return redirect(url_for('login'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        sid = request.form.get('student_id')
-        dob = request.form.get('dob')
-        name = request.form.get('name', 'นักเรียนใหม่')
+        username = request.form.get('username')
+        password = request.form.get('password')
         
-        # Automatically assign a random room from 1 to 10 upon registration
-        assigned_room = random.randint(1, 10)
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists!', 'error')
+            return redirect(url_for('register'))
+            
+        # FIXED HASHING
+        hashed_pw = generate_password_hash(password)
         
-        users_db[sid] = {
-            "name": name, 
-            "dob": dob, 
-            "role": "student", 
-            "room": assigned_room
-        }
-        return "<h1>ลงทะเบียนสำเร็จ!</h1><br><a href='/'>กลับหน้าต่างเข้าสู่ระบบ</a>"
+        is_first_user = User.query.count() == 0
+        
+        new_user = User(
+            username=username, 
+            password=hashed_pw, 
+            is_admin=is_first_user,
+            room=random.randint(1, 12)
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Registration successful! Please login.', 'success')
+        return redirect(url_for('login'))
     return render_template('register.html')
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    sid = request.form.get('student_id')
-    dob = request.form.get('dob')
-    user_profile = users_db.get(sid)
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        print(f"\n--- DEBUG LOGIN ATTEMPT ---")
+        print(f"Username entered: '{username}'")
+        
+        if not username or not password:
+            flash('Please fill out both fields.', 'error')
+            return render_template('login.html')
+
+        user = User.query.filter_by(username=username).first()
+        
+        if user is None:
+            print("DEBUG RESULT: FAILED! Username not found.")
+            flash('Invalid Username or Password', 'error')
+        else:
+            if check_password_hash(user.password, password):
+                print("DEBUG RESULT: SUCCESS! Logging in...")
+                login_user(user)
+                return redirect(url_for('dashboard'))
+            else:
+                print("DEBUG RESULT: FAILED! Password mismatch.")
+                flash('Invalid Username or Password', 'error')
+                
+    return render_template('login.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    state = SchoolState.query.first()
+    teacher = state.current_teacher if state else "Dr. Sigma"
+    subject = state.current_subject if state else "Advanced Mewing"
     
-    if user_profile and user_profile["dob"] == dob:
-        student_room = user_profile["room"]
+    roommates = User.query.filter(User.room == current_user.room, User.id != current_user.id).all()
+    all_students = User.query.all()
+    
+    return render_template('dashboard.html', 
+                           teacher=teacher, 
+                           subject=subject, 
+                           roommates=roommates, 
+                           all_students=all_students)
+
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required
+def admin_panel():
+    if not current_user.is_admin:
+        flash("Access denied: Admins only!", "error")
+        return redirect(url_for('dashboard'))
         
-        # Generate the random 4-digit schedule layout code
-        random_schedule = f"{random.randint(0, 9999):04d}"
+    all_students = User.query.all()
+    return render_template('admin.html', all_students=all_students)
+
+@app.route('/admin/update_student', methods=['POST'])
+@login_required
+def update_student():
+    if not current_user.is_admin:
+        return "Unauthorized", 403
         
-        # Filter classmate pool: Only show students who share the exact same room
-        matching_classmates = [mate for mate in global_classmates_pool if mate["room"] == student_room]
+    student_id = request.form.get('student_id')
+    money_action = request.form.get('money_action')
+    money_amount = int(request.form.get('money_amount', 0))
+    goodness_action = request.form.get('goodness_action')
+    goodness_amount = int(request.form.get('goodness_amount', 0))
+    
+    student = User.query.get(student_id)
+    if student:
+        if money_action == "add": student.money += money_amount
+        elif money_action == "delete": student.money -= money_amount
+            
+        if goodness_action == "add": student.goodness_points += goodness_amount
+        elif goodness_action == "delete": student.goodness_points -= goodness_amount
+            
+        if student.goodness_points > 100: student.goodness_points = 100
+            
+        db.session.commit()
+        flash(f"Successfully updated {student.username}!", "success")
         
-        # Insert the logged-in user at the top of their classroom list view
-        matching_classmates.insert(0, {
-            "id": sid, 
-            "name": f"{user_profile['name']} (คุณ)", 
-            "room": student_room, 
-            "status": "Online"
-        })
-        
-        return render_template('dashboard.html', 
-                               uid=sid, 
-                               name=user_profile["name"], 
-                               role=user_profile["role"],
-                               room_num=student_room,
-                               schedule_num=random_schedule,
-                               classmates=matching_classmates)
-        
-    return "<h1>เข้าสู่ระบบล้มเหลว!</h1><p>กรุณาลงทะเบียนบัญชีก่อนใช้งาน</p><a href='/'>ลองอีกครั้ง</a>"
+    return redirect(url_for('admin_panel'))
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+with app.app_context():
+    db.create_all()
+    if not SchoolState.query.first():
+        initial_state = SchoolState(current_teacher="Professor Skibidi", current_subject="Advanced Mewing")
+        db.session.add(initial_state)
+        db.session.commit()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(debug=True, host='0.0.0.0')
