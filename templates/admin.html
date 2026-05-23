@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PKS Portal - Admin Panel</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='PKS.png') }}">
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
+        .container { max-width: 900px; background: white; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .logo-large { width: 220px; height: auto; margin-bottom: 15px; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.15)); }
+        .navbar { margin-bottom: 30px; padding: 12px; background: #333; border-radius: 8px; text-align: left; }
+        .navbar a { color: white; margin-right: 20px; text-decoration: none; font-weight: bold; }
+        .card { max-width: 500px; background: #fafafa; padding: 25px; border-radius: 8px; border: 1px solid #ddd; text-align: left; margin: 20px auto; }
+        .btn { background: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+        .flash { padding: 10px; background: #d4edda; color: #155724; border-radius: 5px; margin-bottom: 15px; font-size: 14px; border: 1px solid #c3e6cb; }
+        .input-select { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="{{ url_for('static', filename='PKS.png') }}" class="logo-large" alt="PKS Logo">
+        
+        <div class="navbar">
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('admin_panel') }}" style="color: #ffc107;">🛠 Admin Panel</a>
+            <a href="{{ url_for('logout') }}" style="float: right; color: #ff6b6b; margin-right: 0;">Logout</a>
+        </div>
+
+        <h2>🛠 Administrator Management Console</h2>
+        <p>Modify student bank metrics and discipline records below.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, msg in messages %}
+                    <div class="flash">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <h3>Adjust Student Profiles</h3>
+            <form action="{{ url_for('update_student') }}" method="POST">
+                
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">Select Target Student:</label>
+                <select name="student_id" class="input-select" required>
+                    {% for student in all_students %}
+                        <option value="{{ student.id }}">{{ student.username }} (Room {{ student.room }})</option>
+                    {% endfor %}
+                </select>
+
+                <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
+
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">Currency Adjustment:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <select name="money_action" style="padding:8px; border-radius:5px; border:1px solid #ccc;">
+                        <option value="none">No Change</option>
+                        <option value="add">Add (+)</option>
+                        <option value="delete">Deduct (-)</option>
+                    </select>
+                    <input type="number" name="money_amount" value="0" min="0" style="padding:8px; flex: 1; border-radius:5px; border:1px solid #ccc;">
+                </div>
+
+                <label style="font-weight:bold; display:block; margin-bottom:5px;">คะแนนความดี Adjust:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                    <select name="goodness_action" style="padding:8px; border-radius:5px; border:1px solid #ccc;">
+                        <option value="none">No Change</option>
+                        <option value="add">Add Points (+)</option>
+                        <option value="delete">Remove Points (-)</option>
+                    </select>
+                    <input type="number" name="goodness_amount" value="0" min="0" style="padding:8px; flex: 1; border-radius:5px; border:1px solid #ccc;">
+                </div>
+                <small style="color:#666; display:block; margin-bottom:20px;">Caps cleanly at 100 max. Drops below 0 seamlessly.</small>
+
+                <button type="submit" class="btn">Execute Update</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
