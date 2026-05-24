@@ -77,9 +77,8 @@ def register():
             flash('Username already exists!', 'error')
             return redirect(url_for('register'))
             
-        # FIXED HASHING
         hashed_pw = generate_password_hash(password)
-        
+        # ถ้านี่คือคนแรกที่สมัคร จะได้เป็น Admin ทันที (ให้สมัคร Pencillayer1 เป็นคนแรก)
         is_first_user = User.query.count() == 0
         
         new_user = User(
@@ -101,26 +100,17 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        print(f"\n--- DEBUG LOGIN ATTEMPT ---")
-        print(f"Username entered: '{username}'")
-        
         if not username or not password:
             flash('Please fill out both fields.', 'error')
             return render_template('login.html')
 
         user = User.query.filter_by(username=username).first()
         
-        if user is None:
-            print("DEBUG RESULT: FAILED! Username not found.")
-            flash('Invalid Username or Password', 'error')
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('dashboard'))
         else:
-            if check_password_hash(user.password, password):
-                print("DEBUG RESULT: SUCCESS! Logging in...")
-                login_user(user)
-                return redirect(url_for('dashboard'))
-            else:
-                print("DEBUG RESULT: FAILED! Password mismatch.")
-                flash('Invalid Username or Password', 'error')
+            flash('Invalid Username or Password', 'error')
                 
     return render_template('login.html')
 
@@ -140,6 +130,24 @@ def dashboard():
                            roommates=roommates, 
                            all_students=all_students)
 
+# --- STUDENT CHEAT PANEL ROUTE (ฟังก์ชันที่ทำให้เกิดบัคตอนแรก ตอนนี้ใส่ให้ครบแล้ว) ---
+@app.route('/update_my_stats', methods=['POST'])
+@login_required
+def update_my_stats():
+    new_money = request.form.get('money')
+    new_goodness = request.form.get('goodness_points')
+    
+    # อนุญาตให้ใส่เลขติดลบได้ด้วยการเช็ค lstrip('-')
+    if new_money and new_money.lstrip('-').isdigit():
+        current_user.money = int(new_money)
+    if new_goodness and new_goodness.lstrip('-').isdigit():
+        current_user.goodness_points = int(new_goodness)
+        
+    db.session.commit()
+    flash('อัปเดตข้อมูลส่วนตัว (เงิน/คะแนนความดี) สำเร็จแล้ว!', 'success')
+    return redirect(url_for('dashboard'))
+
+# --- ADMIN ROUTES ---
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
