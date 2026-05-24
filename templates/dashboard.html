@@ -6,85 +6,164 @@
     <title>PKS Portal - Dashboard</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='PKS.png') }}">
     <style>
-        body { font-family: 'Arial', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
-        .container { max-width: 900px; background: white; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .logo-large { width: 220px; height: auto; margin-bottom: 15px; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.15)); }
-        .navbar { margin-bottom: 30px; padding: 12px; background: #333; border-radius: 8px; text-align: left; }
-        .navbar a { color: white; margin-right: 20px; text-decoration: none; font-weight: bold; }
-        .grid { display: flex; gap: 20px; flex-wrap: wrap; justify-content: space-between; margin-top: 25px; }
-        .card { flex: 1; min-width: 280px; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid #ddd; text-align: left; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        body { font-family: 'Arial', sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        /* Navbar */
+        .navbar { margin-bottom: 20px; padding: 15px; background: #343a40; border-radius: 8px; color: white; display: flex; justify-content: space-between; align-items: center;}
+        .navbar a { color: white; text-decoration: none; font-weight: bold; margin-right: 15px;}
+        
+        /* Header แบบในรูป */
+        .schedule-header { background-color: #17a2b8; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .schedule-header h1 { margin: 5px 0 0 0; font-size: 24px; font-weight: normal; }
+        .schedule-header p { margin: 0; font-size: 14px; opacity: 0.9; }
+
+        /* Card Container */
+        .card { background: white; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #dee2e6; border-top: none; }
+        
+        /* ตารางเรียน */
+        table.schedule { width: 100%; border-collapse: collapse; text-align: center; font-size: 13px; }
+        table.schedule th, table.schedule td { border: 1px solid #dee2e6; padding: 10px; }
+        table.schedule th { background-color: #f8f9fa; font-weight: bold; }
+        table.schedule td { vertical-align: top; }
+        .cell-class { background-color: #d4edda; border-radius: 4px; padding: 5px; min-height: 60px; }
+        
+        /* ฟอร์มแก้ไขข้อมูล */
+        .edit-stats-box { background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-top: 20px; display: inline-block; width: 100%; max-width: 500px;}
+        .edit-stats-box input { padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box;}
+        .btn-update { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px;}
+        .btn-update:hover { background: #218838; }
+
         .flash { padding: 10px; background: #d4edda; color: #155724; border-radius: 5px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <img src="{{ url_for('static', filename='PKS.png') }}" class="logo-large" alt="PKS Logo">
         
         <div class="navbar">
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            {% if current_user.is_admin %}
-                <a href="{{ url_for('admin_panel') }}" style="color: #ffc107;">🛠 Admin Panel</a>
+            <div>
+                <img src="{{ url_for('static', filename='PKS.png') }}" alt="Logo" onerror="this.style.display='none'" style="width: 30px; vertical-align: middle; margin-right: 10px; background:white; border-radius:4px;">
+                <strong>PKS ONLINE</strong>
+            </div>
+            <div>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin_panel') }}" style="color: #ffc107;">🛠 Admin Panel</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" style="color: #ff6b6b;">Logout</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    <div class="flash">{{ msg }}</div>
+                {% endfor %}
             {% endif %}
-            <a href="{{ url_for('logout') }}" style="float: right; color: #ff6b6b; margin-right: 0;">Logout</a>
+        {% endwith %}
+
+        <div class="schedule-header">
+            <p>ตารางเรียน ปีการศึกษา 2569 ภาคเรียนที่ 1</p>
+            <h1>รหัส 17349 {{ current_user.username }}</h1>
         </div>
 
-        <h2>Welcome, {{ current_user.username }}!</h2>
-
-        <div class="grid">
-            <div class="card">
-                <h3>💰 Account Inventory</h3>
-                <p style="font-size: 22px;"><strong>Balance:</strong> ฿{{ current_user.money }}</p>
-                <p style="font-size: 18px;"><strong>คะแนนความดี:</strong> 
-                    <span style="color: {% if current_user.goodness_points < 0 %}#dc3545{% else %}#28a745{% endif %}; font-weight:bold;">
-                        {{ current_user.goodness_points }} / 100
-                    </span>
-                </p>
-            </div>
-
-            <div class="card">
-                <h3>🏫 Room Layout (Room {{ current_user.room }})</h3>
-                <p><strong>Current Teacher:</strong> {{ teacher }}</p>
-                <p><strong>Subject Module:</strong> {{ subject }}</p>
-                <hr>
-                <h4>Classmates in Room {{ current_user.room }}:</h4>
-                <ul>
-                    {% for rm in roommates %}
-                        <li><strong>{{ rm.username }}</strong> (คะแนนความดี: {{ rm.goodness_points }})</li>
-                    {% else %}
-                        <li style="color: #777;">You are alone in Room {{ current_user.room }}.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-
-        <div class="card" style="margin-top: 25px;">
-            <h3>📊 Global Student Directory & Leaderboard</h3>
-            <table>
+        <div class="card">
+            <h3 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 10px; font-size:16px;">📊 ตารางเรียน 101</h3>
+            
+            <table class="schedule">
                 <thead>
                     <tr>
-                        <th>Username</th>
-                        <th>Assigned Room</th>
-                        <th>Virtual Wallet</th>
-                        <th>คะแนนความดี</th>
+                        <th>วัน/คาบ</th>
+                        <th>คาบที่ 0<br>07.50 - 08.30</th>
+                        <th>คาบที่ 1<br>08.30 - 09.20</th>
+                        <th>คาบที่ 2<br>09.20 - 10.10</th>
+                        <th>คาบที่ 3<br>10.10 - 11.00</th>
+                        <th>คาบที่ 4<br>11.00 - 11.50</th>
+                        <th>คาบที่ 5<br>11.50 - 12.40</th>
+                        <th>คาบที่ 6<br>12.40 - 13.30</th>
+                        <th>คาบที่ 7<br>13.30 - 14.20</th>
+                        <th>คาบที่ 8<br>14.20 - 15.10</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for student in all_students %}
-                    <tr {% if student.id == current_user.id %}style="background: #e8f4fd; font-weight: bold;"{% endif %}>
-                        <td>{{ student.username }} {% if student.is_admin %}⭐️{% endif %}</td>
-                        <td>Room {{ student.room }}</td>
-                        <td>฿{{ student.money }}</td>
-                        <td style="color: {% if student.goodness_points < 0 %}#dc3545{% else %}black{% endif %}; font-weight: bold;">
-                            {{ student.goodness_points }}
-                        </td>
+                    <tr>
+                        <td><strong>จันทร์</strong></td>
+                        <td><div class="cell-class">โฮมรูม<br>Dr. Sigma<br>2401</div></td>
+                        <td><div class="cell-class">ท21101<br>Mr. Rizzler<br>2401</div></td>
+                        <td><div class="cell-class">ค21101<br>Prof. Skibidi<br>2401</div></td>
+                        <td><div class="cell-class">ส21101<br>Duke Dennis<br>2401</div></td>
+                        <td>พักกลางวัน</td>
+                        <td><div class="cell-class">อ21101<br>Kai Cenat<br>2401</div></td>
+                        <td><div class="cell-class">ส21103<br>Baby Gronk<br>2401</div></td>
+                        <td><div class="cell-class">com1<br>IShowSpeed<br>คอม4</div></td>
+                        <td><div class="cell-class">ว21101<br>Giga Chad<br>1304</div></td>
                     </tr>
-                    {% endfor %}
+                    <tr>
+                        <td><strong>อังคาร</strong></td>
+                        <td><div class="cell-class">โฮมรูม<br>Dr. Sigma<br>2401</div></td>
+                        <td><div class="cell-class">ลส/นน<br>Dr. Sigma<br>อาคารโดม</div></td>
+                        <td><div class="cell-class">ว21101<br>Giga Chad<br>2401</div></td>
+                        <td></td>
+                        <td>พักกลางวัน</td>
+                        <td><div class="cell-class">พ21101<br>Dr. Sigma<br>2401</div></td>
+                        <td><div class="cell-class">ห้องสมุด<br>Livvy Dunne<br>ห้องสมุด</div></td>
+                        <td><div class="cell-class">ท21101<br>Mr. Rizzler<br>2401</div></td>
+                        <td><div class="cell-class">ค้นคว้า<br>Dr. Sigma<br>2401</div></td>
+                    </tr>
+                    <tr>
+                        <td><strong>พุธ</strong></td>
+                        <td><div class="cell-class">โฮมรูม<br>Dr. Sigma<br>2401</div></td>
+                        <td><div class="cell-class">ประชุม<br>Dr. Sigma<br>หอประชุม</div></td>
+                        <td><div class="cell-class">ชุมนุม<br>Dr. Sigma<br>อาคารโดม</div></td>
+                        <td><div class="cell-class">ส21103<br>Baby Gronk<br>2401</div></td>
+                        <td>พักกลางวัน</td>
+                        <td><div class="cell-class">อ20201<br>Lord Grimace<br>2401</div></td>
+                        <td><div class="cell-class">ค21201<br>Looksmaxxer<br>2401</div></td>
+                        <td><div class="cell-class">พ21103<br>Fanum<br>สนาม1</div></td>
+                        <td><div class="cell-class">อ21101<br>Kai Cenat<br>2401</div></td>
+                    </tr>
+                    <tr>
+                        <td><strong>พฤหัส</strong></td>
+                        <td><div class="cell-class">โฮมรูม<br>Dr. Sigma<br>2401</div></td>
+                        <td><div class="cell-class">ท21101<br>Mr. Rizzler<br>2401</div></td>
+                        <td colspan="2"><div class="cell-class">ว20221<br>Ohio Final Boss<br>1303</div></td>
+                        <td>พักกลางวัน</td>
+                        <td><div class="cell-class">ค21101<br>Prof. Skibidi<br>2401</div></td>
+                        <td><div class="cell-class">ส21101<br>Duke Dennis<br>2401</div></td>
+                        <td><div class="cell-class">ศ21101<br>Plaqueboymax<br>2401</div></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ศุกร์</strong></td>
+                        <td><div class="cell-class">โฮมรูม<br>Dr. Sigma<br>2401</div></td>
+                        <td><div class="cell-class">คุณธรรม<br>Dr. Sigma<br>2401</div></td>
+                        <td><div class="cell-class">ค21101<br>Prof. Skibidi<br>2401</div></td>
+                        <td><div class="cell-class">ค21201<br>Looksmaxxer<br>2401</div></td>
+                        <td>พักกลางวัน</td>
+                        <td><div class="cell-class">ก20901<br>Quandale Dingle<br>2401</div></td>
+                        <td><div class="cell-class">อ21101<br>Kai Cenat<br>2401</div></td>
+                        <td><div class="cell-class">ง21101<br>John Pork<br>2401</div></td>
+                        <td></td>
+                    </tr>
                 </tbody>
             </table>
         </div>
+
+        <div class="edit-stats-box">
+            <h3 style="margin-top: 0; color: #856404;">⚙️ ระบบแก้ไขข้อมูลนักเรียน (Student Cheat Panel)</h3>
+            <p style="font-size: 14px; color: #666;">สถานะปัจจุบัน: เงิน <strong>฿{{ current_user.money }}</strong> | คะแนนความดี: <strong>{{ current_user.goodness_points }}</strong></p>
+            
+            <form action="{{ url_for('update_my_stats') }}" method="POST">
+                <label>แก้ไขจำนวนเงิน (Money):</label>
+                <input type="number" name="money" value="{{ current_user.money }}" required>
+                
+                <label>แก้ไขคะแนนความดี (Goodness Points):</label>
+                <input type="number" name="goodness_points" value="{{ current_user.goodness_points }}" required>
+                
+                <button type="submit" class="btn-update">💾 บันทึกข้อมูล</button>
+            </form>
+        </div>
+
     </div>
 </body>
 </html>
